@@ -1,10 +1,6 @@
-use std::{path::PathBuf, time::Duration};
+use std::{ path::PathBuf, time::Duration, process::ExitCode };
 
-use bevy::{
-    app::{AppExit, ScheduleRunnerPlugin},
-    log::{Level, LogPlugin},
-    prelude::*,
-};
+use bevy::{ app::{ AppExit, ScheduleRunnerPlugin }, log::{ Level, LogPlugin }, prelude::* };
 use bevy_mod_environment_map_tools::write_ktx2;
 
 use clap::Parser;
@@ -22,33 +18,32 @@ struct Args {
     outputs: Vec<PathBuf>,
 }
 
-fn main() {
+fn main() -> ExitCode {
     let args = Args::parse();
 
     if args.inputs.is_empty() {
-        panic!("No input paths provided");
+        println!("No input paths provided");
+        return ExitCode::FAILURE;
     }
 
     if args.outputs.is_empty() {
-        panic!("No output paths provided");
+        println!("No output paths provided");
+        return ExitCode::FAILURE;
     }
 
     if args.inputs.len() != args.outputs.len() {
-        panic!("Input and output path lengths don't match");
+        println!("Input and output path lengths don't match");
+        return ExitCode::FAILURE;
     }
 
     let mut app = App::new();
     // TODO don't be ridiculous
     app.add_plugins(
-        MinimalPlugins
-            .set(ScheduleRunnerPlugin::run_loop(Duration::from_secs_f64(
-                1.0 / 100.0,
-            )))
+        MinimalPlugins.set(ScheduleRunnerPlugin::run_loop(Duration::from_secs_f64(1.0 / 100.0)))
             .build()
             .add(AssetPlugin::default())
-            .add(ImagePlugin::default()),
-    )
-    .add_systems(Update, convert);
+            .add(ImagePlugin::default())
+    ).add_systems(Update, convert);
 
     // Use bevy's logging for debug builds.
     #[cfg(debug_assertions)]
@@ -71,6 +66,8 @@ fn main() {
     }
 
     app.run();
+
+    ExitCode::SUCCESS
 }
 
 #[derive(Component)]
@@ -86,7 +83,7 @@ fn convert(
     mut commands: Commands,
     query: Query<(Entity, &ImageToConvert), Without<Converted>>,
     images: ResMut<Assets<Image>>,
-    mut app_exit_events: EventWriter<AppExit>,
+    mut app_exit_events: EventWriter<AppExit>
 ) {
     if query.is_empty() {
         app_exit_events.send(AppExit);
@@ -98,7 +95,7 @@ fn convert(
                 &conv.output_path.display(),
                 image.texture_descriptor.size,
                 image.texture_descriptor.mip_level_count,
-                image.texture_descriptor.format,
+                image.texture_descriptor.format
             );
             write_ktx2(image, &conv.output_path);
             commands.entity(entity).insert(Converted);
